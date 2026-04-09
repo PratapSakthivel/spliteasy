@@ -1,11 +1,14 @@
 package com.spliteasy.backend.service;
 
+import com.spliteasy.backend.dto.BalanceResponse;
 import com.spliteasy.backend.dto.GroupResponse;
 import com.spliteasy.backend.dto.InviteLinkResponse;
 import com.spliteasy.backend.entity.Group;
 import com.spliteasy.backend.entity.GroupMember;
 import com.spliteasy.backend.entity.InviteToken;
 import com.spliteasy.backend.entity.User;
+import com.spliteasy.backend.repository.ExpenseRepository;
+import com.spliteasy.backend.repository.ExpenseSplitRepository;
 import com.spliteasy.backend.repository.GroupMemberRepository;
 import com.spliteasy.backend.repository.GroupRepository;
 import com.spliteasy.backend.repository.InviteTokenRepository;
@@ -27,6 +30,8 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final InviteTokenRepository inviteTokenRepository;
     private final UserRepository userRepository;
+    private final ExpenseRepository expenseRepository;
+    private final ExpenseSplitRepository expenseSplitRepository;
 
     @Transactional
     public GroupResponse createGroup(String name, String email) {
@@ -135,5 +140,41 @@ public class GroupService {
         int memberCount = groupMemberRepository.findAllByGroup(group).size();
 
         return new GroupResponse(group.getId(), group.getName(), memberCount);
+    }
+
+    public List<BalanceResponse> getGroupBalances(Long groupId, String email) {
+        // Find group
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+        // Find all members in this group
+        List<GroupMember> groupMembers = groupMemberRepository.findAllByGroup(group);
+
+        // Calculate balance for each member
+        return groupMembers.stream()
+                .map(gm -> {
+                    User user = gm.getUser();
+
+                    // Calculate total paid by this user
+                    double totalPaid = expenseRepository.findAllByGroupAndPaidBy(group, user)
+                            .stream()
+                            .mapToDouble(expense -> expense.getAmount())
+                            .sum();
+
+                    // Calculate total owed by this user
+                    double totalOwed = expenseSplitRepository.findAllByUserAndExpense_Group(user, group)
+                            .stream()
+                            .mapToDouble(split -> split.getAmount())
+                            .sum();
+
+                    // Calculate net balance
+                    double netBalance = totalPaid - totalOwed;
+
+                    // Round to 2 decimal places
+                    netBalance = Math.round(netBalance * 100.0) / 100.0;
+
+                    return new BalanceResponse(user.getId(), user.getEmail(), netBalance);
+                })
+                .collect(Collectors.toList());
     }
 }

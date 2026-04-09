@@ -1,5 +1,6 @@
 package com.spliteasy.backend.controller;
 
+import com.spliteasy.backend.dto.BalanceResponse;
 import com.spliteasy.backend.dto.GroupRequest;
 import com.spliteasy.backend.dto.GroupResponse;
 import com.spliteasy.backend.dto.InviteLinkResponse;
@@ -68,5 +69,12 @@ public class GroupController {
         String loggedInEmail = getLoggedInEmail(); // Added for authentication
         GroupResponse response = groupService.getGroupById(id);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/groups/{id}/balances")
+    public ResponseEntity<List<BalanceResponse>> getGroupBalances(@PathVariable Long id) {
+        String loggedInEmail = getLoggedInEmail();
+        List<BalanceResponse> balances = groupService.getGroupBalances(id, loggedInEmail);
+        return ResponseEntity.ok(balances);
     }
 }
