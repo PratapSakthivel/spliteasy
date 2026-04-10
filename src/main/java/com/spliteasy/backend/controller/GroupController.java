@@ -1,19 +1,28 @@
 package com.spliteasy.backend.controller;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.spliteasy.backend.dto.BalanceResponse;
 import com.spliteasy.backend.dto.GroupRequest;
 import com.spliteasy.backend.dto.GroupResponse;
 import com.spliteasy.backend.dto.InviteLinkResponse;
+import com.spliteasy.backend.dto.SettlementSuggestion;
+import com.spliteasy.backend.service.DebtSimplificationService;
 import com.spliteasy.backend.service.GroupService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -21,6 +30,7 @@ import java.util.Map;
 public class GroupController {
 
     private final GroupService groupService;
+    private final DebtSimplificationService debtSimplificationService;
 
     private String getLoggedInEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
@@ -76,5 +86,13 @@ public class GroupController {
         String loggedInEmail = getLoggedInEmail();
         List<BalanceResponse> balances = groupService.getGroupBalances(id, loggedInEmail);
         return ResponseEntity.ok(balances);
+    }
+
+    @GetMapping("/groups/{id}/settle")
+    public ResponseEntity<List<SettlementSuggestion>> getSettlementSuggestions(@PathVariable Long id) {
+        String loggedInEmail = getLoggedInEmail();
+        List<BalanceResponse> balances = groupService.getGroupBalances(id, loggedInEmail);
+        List<SettlementSuggestion> settlements = debtSimplificationService.simplify(balances);
+        return ResponseEntity.ok(settlements);
     }
 }
